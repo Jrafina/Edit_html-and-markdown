@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodePlay - 多模式在线编辑器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 JetBrains Mono 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 GitHub Markdown CSS 样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css">
+    <!-- 引入代码高亮样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1d2a35;
+            color: #ddd;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .dark-theme {
+            background-color: #1d2a35;
+            color: #ddd;
+        }
+
+        .light-theme {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        /* 首页样式 */
+        #homepage {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+            text-align: center;
+            transition: opacity 0.5s ease;
+        }
+
+        #homepage.hidden {
+            display: none;
+        }
+
+        .logo-large {
+            font-size: 48px;
+            font-weight: bold;
+            color: #04AA6D;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .logo-large span {
+            color: #0366d6;
+        }
+
+        .tagline {
+            font-size: 18px;
+            color: #aaa;
+            margin-bottom: 50px;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .mode-card {
+            background-color: #38444d;
+            border-radius: 12px;
+            padding: 40px 30px;
+            width: 280px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border-color: #04AA6D;
+        }
+
+        .mode-card.markdown:hover {
+            border-color: #0366d6;
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #04AA6D;
+        }
+
+        .mode-card.markdown .mode-icon {
+            color: #0366d6;
+        }
+
+        .mode-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .mode-description {
+            color: #aaa;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        .mode-features {
+            text-align: left;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .mode-features li {
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .mode-features i {
+            margin-right: 8px;
+            color: #04AA6D;
+        }
+
+        .mode-card.markdown .mode-features i {
+            color: #0366d6;
+        }
+
+        .mode-select-btn {
+            background-color: #04AA6D;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .mode-card.markdown .mode-select-btn {
+            background-color: #0366d6;
+        }
+
+        .mode-select-btn:hover {
+            background-color: #059862;
+            transform: scale(1.05);
+        }
+
+        .mode-card.markdown .mode-select-btn:hover {
+            background-color: #0256b9;
+        }
+
+        .footer {
+            margin-top: 40px;
+            color: #777;
+            font-size: 14px;
+            max-width: 600px;
+        }
+
+        .theme-toggle-home {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .theme-toggle-home:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* 编辑器容器 */
+        #editor-container {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        #editor-container.visible {
+            display: flex;
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            background-color: #38444d;
+            height: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 20px;
+            color: #04AA6D;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.5px;
+            cursor: pointer;
+        }
+
+        .logo span {
+            color: #0366d6;
+        }
+
+        .logo:hover {
+            opacity: 0.9;
+        }
+
+        .light-theme .top-bar {
+            background-color: #E7E9EB;
+        }
+
+        .light-theme .logo {
+            color: #04AA6D;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .btn-run {
+            background-color: #04AA6D;
+            color: white;
+            font-size: 16px;
+            padding: 6px 25px;
+        }
+
+        .btn-run:hover {
+            background-color: #059862;
+        }
+
+        .btn-markdown {
+            background-color: #0366d6;
+        }
+
+        .btn-markdown:hover {
+            background-color: #0256b9;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .light-theme .btn-icon {
+            color: #666;
+        }
+
+        .btn-icon:hover {
+            color: #ddd;
+        }
+
+        .light-theme .btn-icon:hover {
+            color: #333;
+        }
+
+        .theme-toggle {
+            margin-left: 10px;
+        }
+
+        .frame-size {
+            font-size: 16px;
+            color: #ddd;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .light-theme .frame-size {
+            color: #555;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 48px);
+            position: relative;
+        }
+
+        .resizer {
+            position: absolute;
+            width: 5px;
+            background-color: #555;
+            cursor: col-resize;
+            z-index: 3;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .resizer:hover {
+            background-color: #777;
+        }
+
+        .light-theme .resizer {
+            background-color: #999;
+        }
+
+        .light-theme .resizer:hover {
+            background-color: #bbb;
+        }
+
+        .editor-pane, .preview-pane {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .pane-header {
+            background-color: #2d3339;
+            padding: 8px 15px;
+            font-weight: 600;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .light-theme .pane-header {
+            background-color: #f1f1f1;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background-color: rgb(21, 32, 43);
+        }
+
+        .light-theme .editor-wrapper {
+            background-color: white;
+        }
+
+        .CodeMirror {
+            height: 100% !important;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+            line-height: 1.5;
+        }
+
+        .CodeMirror.markdown-editor {
+            font-size: 16px;
+        }
+
+        .preview-wrapper {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background-color: #1d2a35;
+        }
+
+        .light-theme .preview-wrapper {
+            background-color: white;
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .light-theme .markdown-body {
+            color: #24292e;
+            background-color: white;
+        }
+
+        .dark-theme .markdown-body {
+            color: #c9d1d9;
+            background-color: #1d2a35;
+        }
+
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 18px;
+            z-index: 10;
+            display: none;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #04AA6D;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        .loading.markdown .spinner {
+            border-top-color: #0366d6;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 实时预览开关 */
+        .realtime-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #ddd;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .light-theme .realtime-toggle {
+            color: #555;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #04AA6D;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .realtime-toggle.markdown input:checked + .slider {
+            background-color: #0366d6;
+        }
+
+        /* Markdown 快捷工具栏 */
+        .toolbar {
+            display: none;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 8px;
+            background-color: #2d3339;
+            border-bottom: 1px solid #444;
+        }
+
+        .light-theme .toolbar {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .toolbar.visible {
+            display: flex;
+        }
+
+        .toolbar-btn {
+            padding: 6px 10px;
+            background-color: #38444d;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s ease;
+            color: #ddd;
+        }
+
+        .light-theme .toolbar-btn {
+            background-color: white;
+            border-color: #ddd;
+            color: #333;
+        }
+
+        .toolbar-btn:hover {
+            background-color: #4a5560;
+        }
+
+        .light-theme .toolbar-btn:hover {
+            background-color: #e9ecef;
+        }
+
+        .toolbar-btn i {
+            margin-right: 5px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .resizer {
+                width: 100%;
+                height: 5px;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                cursor: row-resize;
+            }
+            
+            .editor-pane, .preview-pane {
+                height: 50%;
+            }
+
+            .mode-selector {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .mode-card {
+                width: 100%;
+                max-width: 350px;
+                padding: 30px 20px;
+            }
+        }
+
+        /* CodeMirror 自定义样式 */
+        .CodeMirror-linenumber {
+            color: #999;
+            padding-right: 10px;
+            font-family: 'JetBrains Mono', monospace !important;
+        }
+
+        .light-theme .CodeMirror-linenumber {
+            color: #888;
+        }
+
+        .CodeMirror-gutters {
+            background-color: #1a252f;
+            border-right: 1px solid #333;
+        }
+
+        .light-theme .CodeMirror-gutters {
+            background-color: #f8f8f8;
+            border-right: 1px solid #eee;
+        }
+
+        .CodeMirror-cursor {
+            border-left: 2px solid #fff;
+        }
+
+        .light-theme .CodeMirror-cursor {
+            border-left: 2px solid #333;
+        }
+
+        /* 代码高亮优化 */
+        .cm-s-dracula .cm-keyword { color: #ff79c6; font-weight: 500; }
+        .cm-s-dracula .cm-atom { color: #bd93f9; }
+        .cm-s-dracula .cm-number { color: #bd93f9; }
+        .cm-s-dracula .cm-def { color: #50fa7b; }
+        .cm-s-dracula .cm-variable { color: #f8f8f2; }
+        .cm-s-dracula .cm-property { color: #f8f8f2; }
+        .cm-s-dracula .cm-operator { color: #ff79c6; }
+        .cm-s-dracula .cm-variable-2 { color: #8be9fd; }
+        .cm-s-dracula .cm-variable-3 { color: #ffb86c; }
+        .cm-s-dracula .cm-comment { color: #6272a4; }
+        .cm-s-dracula .cm-string { color: #f1fa8c; }
+        .cm-s-dracula .cm-string-2 { color: #f1fa8c; }
+        .cm-s-dracula .cm-meta { color: #f8f8f2; }
+        .cm-s-dracula .cm-qualifier { color: #50fa7b; }
+        .cm-s-dracula .cm-builtin { color: #50fa7b; }
+        .cm-s-dracula .cm-bracket { color: #f8f8f2; }
+        .cm-s-dracula .cm-tag { color: #ff79c6; }
+        .cm-s-dracula .cm-attribute { color: #50fa7b; }
+        .cm-s-dracula .cm-header { color: #bd93f9; }
+        .cm-s-dracula .cm-quote { color: #6272a4; }
+        .cm-s-dracula .cm-hr { color: #f8f8f2; }
+        .cm-s-dracula .cm-link { color: #8be9fd; }
+        .cm-s-dracula .cm-error { color: #ff5555; }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2d3339;
+        }
+
+        .light-theme ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 5px;
+        }
+
+        .light-theme ::-webkit-scrollbar-thumb {
+            background: #ccc;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+        .light-theme ::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .import-export-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #2d3339;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 500px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ddd;
+        }
+
+        .light-theme .modal-content {
+            background-color: white;
+            color: #333;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-primary {
+            background-color: #04AA6D;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background-color: #059862;
+        }
+
+        .modal-btn-markdown {
+            background-color: #0366d6;
+        }
+
+        .modal-btn-markdown:hover {
+            background-color: #0256b9;
+        }
+
+        .modal-btn-secondary {
+            background-color: #444;
+            color: #ddd;
+        }
+
+        .light-theme .modal-btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+
+        .modal-btn-secondary:hover {
+            background-color: #555;
+        }
+
+        .light-theme .modal-btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* 文件名输入框 */
+        .filename-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 10px;
+            background-color: #38444d;
+            color: #ddd;
+        }
+
+        .light-theme .filename-input {
+            background-color: white;
+            border-color: #ddd;
+            color: #333;
+        }
+
+        /* 代码块样式 - 增强版 */
+        .markdown-body pre {
+            position: relative;
+            padding: 0;
+            margin: 16px 0;
+            background-color: #0d1117;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .light-theme .markdown-body pre {
+            background-color: #f6f8fa;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .markdown-body pre code {
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            background-color: transparent;
+            border: 0;
+            display: inline;
+            line-height: 1.6;
+            overflow-x: auto;
+            word-wrap: normal;
+            white-space: pre;
+            font-family: 'JetBrains Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+        /* 代码块标题栏 */
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #161b22;
+            padding: 10px 16px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .light-theme .code-block-header {
+            background-color: #e1e4e8;
+            border-bottom-color: #d1d5da;
+        }
+
+        .code-language {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #8b949e;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .code-language i {
+            font-size: 14px;
+        }
+
+        .code-language .lang-name {
+            text-transform: uppercase;
+            background-color: #30363d;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #c9d1d9;
+        }
+
+        .light-theme .code-language .lang-name {
+            background-color: #d1d5da;
+            color: #24292e;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .code-action-btn {
+            background: none;
+            border: none;
+            color: #8b949e;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .code-action-btn:hover {
+            background-color: #30363d;
+            color: #c9d1d9;
+        }
+
+        .light-theme .code-action-btn:hover {
+            background-color: #d1d5da;
+            color: #24292e;
+        }
+
+        /* 代码内容区域 */
+        .code-content {
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        /* 行号样式 */
+        .hljs-ln {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .hljs-ln td {
+            padding: 0;
+        }
+
+        .hljs-ln-numbers {
+            text-align: center;
+            color: #6e7681;
+            vertical-align: top;
+            padding-right: 16px !important;
+            padding-left: 10px !important;
+            border-right: 1px solid #30363d;
+            user-select: none;
+            min-width: 40px;
+        }
+
+        .hljs-ln-code {
+            padding-left: 16px !important;
+            width: 100%;
+        }
+
+        /* 返回首页按钮 */
+        .back-to-home {
+            background: none;
+            border: none;
+            color: #ddd;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            margin-right: 10px;
+        }
+
+        .back-to-home:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .light-theme .back-to-home {
+            color: #333;
+        }
+
+        .light-theme .back-to-home:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <!-- 首页 -->
+    <div id="homepage">
+        <button class="theme-toggle-home" id="themeBtnHome" title="切换主题">
+            <i class="fas fa-moon"></i>
+        </button>
+        
+        <div class="logo-large">CodePlay <span>多模式编辑器</span></div>
+        <p class="tagline">一个功能强大的在线代码编辑器，支持HTML实时编辑和Markdown写作，提供实时预览、代码高亮、导入导出等功能。</p>
+        
+        <div class="mode-selector">
+            <div class="mode-card" id="htmlModeCard">
+                <div class="mode-icon">
+                    <i class="fab fa-html5"></i>
+                </div>
+                <h3 class="mode-title">HTML 编辑器</h3>
+                <p class="mode-description">实时编辑HTML/CSS/JavaScript代码，并立即查看渲染效果。支持代码高亮、格式化、导入导出等功能。</p>
+                
+                <ul class="mode-features">
+                    <li><i class="fas fa-check"></i> 实时预览HTML渲染效果</li>
+                    <li><i class="fas fa-check"></i> 支持CSS和JavaScript代码</li>
+                    <li><i class="fas fa-check"></i> 代码高亮与自动补全</li>
+                    <li><i class="fas fa-check"></i> 导入/导出HTML文件</li>
+                </ul>
+                
+                <button class="mode-select-btn" id="htmlModeBtn">
+                    选择HTML编辑器
+                </button>
+            </div>
+            
+            <div class="mode-card markdown" id="markdownModeCard">
+                <div class="mode-icon">
+                    <i class="fab fa-markdown"></i>
+                </div>
+                <h3 class="mode-title">Markdown 编辑器</h3>
+                <p class="mode-description">使用Markdown语法快速编写文档，实时预览渲染效果。支持代码块高亮、表格、列表等丰富格式。</p>
+                
+                <ul class="mode-features">
+                    <li><i class="fas fa-check"></i> 实时Markdown预览</li>
+                    <li><i class="fas fa-check"></i> 语法高亮和代码块支持</li>
+                    <li><i class="fas fa-check"></i> 快捷工具栏插入格式</li>
+                    <li><i class="fas fa-check"></i> 导入/导出Markdown文件</li>
+                </ul>
+                
+                <button class="mode-select-btn" id="markdownModeBtn">
+                    选择Markdown编辑器
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>CodePlay 多模式编辑器 &copy; 2023 | 使用 CodeMirror、Marked、Highlight.js 等开源库构建</p>
+        </div>
+    </div>
+
+    <!-- 编辑器容器 -->
+    <div id="editor-container">
+        <!-- 顶部导航栏 -->
+        <div class="top-bar">
+            <div class="logo" id="backToHome">
+                <i class="fas fa-arrow-left"></i> CodePlay
+            </div>
+            <div class="controls">
+                <div class="realtime-toggle" id="realtimeToggleContainer">
+                    <span>实时预览:</span>
+                    <label class="switch">
+                        <input type="checkbox" id="realtimeToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="import-export-buttons">
+                    <button class="btn-icon" id="importBtn" title="导入文件">
+                        <i class="fas fa-file-import"></i>
+                    </button>
+                    <button class="btn-icon" id="exportBtn" title="导出文件">
+                        <i class="fas fa-file-export"></i>
+                    </button>
+                </div>
+                <button class="btn-icon" id="saveBtn" title="保存">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button class="btn-icon" id="orientationBtn" title="切换方向">
+                    <i class="fas fa-rotate"></i>
+                </button>
+                <button class="btn-icon theme-toggle" id="themeBtn" title="切换主题">
+                    <i class="fas fa-adjust"></i>
+                </button>
+                <button class="btn btn-run" id="runBtn">
+                    <i class="fas fa-play"></i> <span id="runBtnText">运行</span>
+                </button>
+                <span class="frame-size" id="frameSizeContainer">
+                    结果大小: <span id="frameSize">741 × 681</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Markdown 快捷工具栏 -->
+        <div class="toolbar" id="mdToolbar">
+            <button class="toolbar-btn" data-insert="# "><i class="fas fa-heading"></i> 标题1</button>
+            <button class="toolbar-btn" data-insert="## "><i class="fas fa-heading"></i> 标题2</button>
+            <button class="toolbar-btn" data-insert="**文本**"><i class="fas fa-bold"></i> 粗体</button>
+            <button class="toolbar-btn" data-insert="*文本*"><i class="fas fa-italic"></i> 斜体</button>
+            <button class="toolbar-btn" data-insert="[链接](url)"><i class="fas fa-link"></i> 链接</button>
+            <button class="toolbar-btn" data-insert="![图片](url)"><i class="fas fa-image"></i> 图片</button>
+            <button class="toolbar-btn" data-insert="- 列表项"><i class="fas fa-list"></i> 列表</button>
+            <button class="toolbar-btn" data-insert="```javascript\n代码\n```"><i class="fas fa-code"></i> JS代码块</button>
+            <button class="toolbar-btn" data-insert="```html\n代码\n```"><i class="fas fa-code"></i> HTML代码块</button>
+            <button class="toolbar-btn" data-insert="```css\n代码\n```"><i class="fas fa-code"></i> CSS代码块</button>
+            <button class="toolbar-btn" data-insert="> 引用"><i class="fas fa-quote-right"></i> 引用</button>
+        </div>
+
+        <!-- 主编辑区 -->
+        <div class="main-container">
+            <!-- 代码编辑器 -->
+            <div class="editor-pane">
+                <div class="pane-header">
+                    <span id="editorTitle">HTML 代码</span>
+                    <button class="btn-icon" id="formatBtn" title="格式化代码">
+                        <i class="fas fa-indent"></i>
+                    </button>
+                </div>
+                <div class="editor-wrapper">
+                    <textarea id="codeEditor" autocomplete="off" spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <!-- 分隔条 -->
+            <div class="resizer" id="resizer"></div>
+
+            <!-- 预览区域 -->
+            <div class="preview-pane">
+                <div class="pane-header">
+                    <span id="previewTitle">结果预览</span>
+                    <button class="btn-icon" id="refreshBtn" title="刷新">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="preview-wrapper">
+                    <div class="loading" id="loadingIndicator">
+                        <div class="spinner"></div>
+                        <span id="loadingText">正在渲染预览...</span>
+                    </div>
+                    <iframe class="preview-frame" id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+                    <div class="markdown-body" id="previewContent" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入文件输入框 -->
+    <input type="file" id="fileInput" class="file-input" accept=".html,.htm,.txt,.md,.markdown">
+
+    <!-- 导出文件名模态框 -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">导出文件</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="modalText">请输入文件名（无需输入扩展名）：</p>
+                <input type="text" id="filenameInput" class="filename-input" placeholder="my-file" value="codeplay-export">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" id="modalCancel">取消</button>
+                <button class="modal-btn modal-btn-primary" id="modalExport">导出</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchtags.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/comment/comment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/xml-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+    <script>
+        // 调试函数
+        function debugLog(message) {
+            console.log(`[CodePlay Debug] ${message}`);
+        }
+        
+        // 全局变量
+        let currentMode = null; // 'html' 或 'markdown'
+        let editor = null;
+        let realtimeUpdateEnabled = true;
+        let realtimeUpdateTimeout = null;
+        const realtimeUpdateDelay = 500; // 防抖延迟时间（毫秒）
+        
+        // HTML编辑器默认代码
+        const defaultHTMLCode = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的网页</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #04AA6D;
+            border-bottom: 2px solid #04AA6D;
+            padding-bottom: 10px;
+        }
+        .feature-box {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #04AA6D;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #059862;
+        }
+    </style>
+</head>
+<body>
+    <h1>欢迎来到我的网页</h1>
+    <p>这是一个基本的HTML5模板。请开始编辑您的代码。</p>
+    
+    <h2>示例内容</h2>
+    <ul>
+        <li>HTML5 - 最新的HTML标准</li>
+        <li>CSS3 - 样式和布局</li>
+            <li>JavaScript - 交互功能</li>
+    </ul>
+    
+    <div class="feature-box">
+        <h2>添加样式</h2>
+        <p>您可以在&lt;style&gt;标签中添加CSS样式。</p>
+    </div>
+    
+    <div class="feature-box">
+        <h2>添加脚本</h2>
+        <p>您可以在&lt;script&gt;标签中添加JavaScript代码。</p>
+        <button onclick="showMessage()">点击我试试</button>
+    </div>
+    
+    <div style="margin-top: 30px; padding: 20px; background-color: #f5f5f5; border-radius: 5px;">
+        <p><strong>提示：</strong>点击"运行"按钮查看您的HTML代码效果。</p>
+    </div>
+    
+    <script>
+        function showMessage() {
+            alert('你好！这是一个JavaScript交互示例。');
+        }
+    <\/script>
+</body>
+</html>`;
+
+        // Markdown编辑器默认代码
+        const defaultMDCode = `# Markdown 编辑器示例
+
+欢迎使用 **CodePlay MD** - 一个功能完整的在线Markdown编辑器！
+
+## 主要功能
+
+- **实时预览**：在您输入时立即查看Markdown渲染效果
+- **代码高亮**：支持多种编程语言的语法高亮
+- **导入/导出**：轻松导入和导出Markdown文件
+- **主题切换**：支持亮色和暗色主题
+- **快捷键**：使用快捷键提高编辑效率
+
+## 代码块示例
+
+### JavaScript 代码
+
+\`\`\`javascript
+// 这是一个JavaScript示例
+function greet(name) {
+    return \`Hello, \${name}!\`;
+}
+
+console.log(greet("CodePlay用户"));
+\`\`\`
+
+### HTML 代码
+
+\`\`\`html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>示例页面</title>
+</head>
+<body>
+    <h1>欢迎访问</h1>
+    <p>这是一个示例HTML代码。</p>
+</body>
+</html>
+\`\`\`
+
+### CSS 代码
+
+\`\`\`css
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+h1 {
+    color: #0366d6;
+    text-align: center;
+}
+\`\`\`
+
+## 表格示例
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| 实时预览 | 输入时即时显示渲染效果 | ✅ 支持 |
+| 代码高亮 | 语法高亮显示 | ✅ 支持 |
+| 导入/导出 | 文件操作功能 | ✅ 支持 |
+| 主题切换 | 亮色/暗色主题 | ✅ 支持 |
+
+> **提示**：使用工具栏按钮可以快速插入Markdown格式，或直接使用Markdown语法编写。
+
+## 开始写作
+
+现在，您可以开始使用Markdown编写您的文档了。编辑器支持所有标准的Markdown语法，包括：
+
+- 标题 (#, ##, ###)
+- 列表（有序和无序）
+- 链接和图片
+- 粗体和斜体
+- 代码块和内联代码
+- 引用块
+- 表格
+
+祝您使用愉快！`;
+
+        // 语言图标映射
+        const languageIcons = {
+            'javascript': 'fab fa-js-square',
+            'js': 'fab fa-js-square',
+            'html': 'fab fa-html5',
+            'css': 'fab fa-css3-alt',
+            'python': 'fab fa-python',
+            'php': 'fab fa-php',
+            'java': 'fab fa-java',
+            'c': 'fas fa-c',
+            'cpp': 'fas fa-c',
+            'c++': 'fas fa-c',
+            'c#': 'fas fa-c',
+            'go': 'fab fa-golang',
+            'rust': 'fas fa-gear',
+            'ruby': 'fas fa-gem',
+            'swift': 'fab fa-swift',
+            'kotlin': 'fas fa-k',
+            'typescript': 'fas fa-t',
+            'ts': 'fas fa-t',
+            'sql': 'fas fa-database',
+            'bash': 'fas fa-terminal',
+            'shell': 'fas fa-terminal',
+            'json': 'fas fa-brackets-curly',
+            'yaml': 'fas fa-file-code',
+            'yml': 'fas fa-file-code',
+            'markdown': 'fab fa-markdown',
+            'md': 'fab fa-markdown'
+        };
+
+        // 获取语言图标
+        function getLanguageIcon(lang) {
+            if (!lang) return 'fas fa-code';
+            const lowerLang = lang.toLowerCase();
+            return languageIcons[lowerLang] || 'fas fa-code';
+        }
+
+        // 切换模式
+        function switchToMode(mode) {
+            debugLog(`切换到 ${mode} 模式`);
+            currentMode = mode;
+            
+            // 隐藏首页，显示编辑器
+            document.getElementById('homepage').classList.add('hidden');
+            document.getElementById('editor-container').classList.add('visible');
+            
+            // 初始化对应模式的编辑器
+            initEditorForMode(mode);
+            
+            // 显示通知
+            showNotification(`已切换到${mode === 'html' ? 'HTML' : 'Markdown'}编辑器模式`);
+        }
+
+        // 返回首页
+        function goBackToHome() {
+            debugLog('返回首页');
+            // 隐藏编辑器，显示首页
+            document.getElementById('editor-container').classList.remove('visible');
+            document.getElementById('homepage').classList.remove('hidden');
+            
+            // 重置变量
+            currentMode = null;
+            
+            // 显示通知
+            showNotification('已返回首页');
+        }
+
+        // 初始化对应模式的编辑器
+        function initEditorForMode(mode) {
+            debugLog(`初始化 ${mode} 编辑器`);
+            
+            // 更新UI元素
+            updateUIForMode(mode);
+            
+            // 初始化CodeMirror编辑器
+            initCodeMirror(mode);
+            
+            // 初始化事件监听
+            initEventListeners();
+            
+            // 加载保存的设置
+            loadSettings();
+            
+            // 初始渲染
+            if (mode === 'html') {
+                runCode();
+            } else {
+                renderMarkdown();
+            }
+            
+            // 更新iframe尺寸显示
+            updateFrameSize();
+        }
+
+        // 更新UI元素
+        function updateUIForMode(mode) {
+            const isHTMLMode = mode === 'html';
+            const isMarkdownMode = mode === 'markdown';
+            
+            debugLog(`更新UI为 ${mode} 模式`);
+            
+            // 更新标题
+            document.getElementById('editorTitle').textContent = isHTMLMode ? 'HTML 代码' : 'Markdown 编辑器';
+            document.getElementById('previewTitle').textContent = isHTMLMode ? '结果预览' : 'Markdown 预览';
+            
+            // 更新运行按钮
+            document.getElementById('runBtnText').textContent = isHTMLMode ? '运行' : '预览';
+            const runBtn = document.getElementById('runBtn');
+            runBtn.className = isHTMLMode ? 'btn btn-run' : 'btn btn-run btn-markdown';
+            
+            // 更新实时预览开关
+            const realtimeToggleContainer = document.getElementById('realtimeToggleContainer');
+            realtimeToggleContainer.className = isHTMLMode ? 'realtime-toggle' : 'realtime-toggle markdown';
+            
+            // 更新尺寸显示
+            const frameSizeContainer = document.getElementById('frameSizeContainer');
+            frameSizeContainer.style.display = isHTMLMode ? 'block' : 'none';
+            
+            // 显示/隐藏工具栏
+            const toolbar = document.getElementById('mdToolbar');
+            toolbar.classList.toggle('visible', isMarkdownMode);
+            
+            // 显示/隐藏预览区域
+            const previewFrame = document.getElementById('previewFrame');
+            const previewContent = document.getElementById('previewContent');
+            previewFrame.style.display = isHTMLMode ? 'block' : 'none';
+            previewContent.style.display = isHTMLMode ? 'none' : 'block';
+            
+            // 更新加载指示器
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+            loadingText.textContent = isHTMLMode ? '正在渲染预览...' : '正在渲染Markdown...';
+            loadingIndicator.className = isHTMLMode ? 'loading' : 'loading markdown';
+        }
+
+        // 初始化CodeMirror编辑器
+        function initCodeMirror(mode) {
+            const textarea = document.getElementById('codeEditor');
+            debugLog(`初始化CodeMirror为 ${mode} 模式`);
+            
+            // 如果已有编辑器实例，先销毁
+            if (editor) {
+                textarea.value = editor.getValue();
+                editor.toTextArea();
+            }
+            
+            // 设置编辑器配置
+            const config = {
+                theme: 'dracula',
+                lineNumbers: true,
+                lineWrapping: mode === 'markdown',
+                autoCloseTags: true,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                matchTags: {bothTags: true},
+                extraKeys: {
+                    "F11": function(cm) {
+                        cm.setOption("fullScreen", !cm.getOption("fullScreen"));
+                    },
+                    "Esc": function(cm) {
+                        if (cm.getOption("fullScreen")) cm.setOption("fullScreen", false);
+                    },
+                    "Ctrl-Space": "autocomplete",
+                    "Ctrl-/": "toggleComment",
+                    "Cmd-/": "toggleComment",
+                    "Tab": "indentMore",
+                    "Shift-Tab": "indentLess"
+                },
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                indentUnit: 4,
+                indentWithTabs: false,
+                smartIndent: true
+            };
+            
+            // 设置模式
+            if (mode === 'html') {
+                config.mode = 'htmlmixed';
+                textarea.value = localStorage.getItem('codeplay-html-code') || defaultHTMLCode;
+            } else {
+                config.mode = 'markdown';
+                textarea.value = localStorage.getItem('codeplay-md-code') || defaultMDCode;
+                config.lineWrapping = true;
+            }
+            
+            // 创建编辑器
+            editor = CodeMirror.fromTextArea(textarea, config);
+            debugLog('CodeMirror编辑器创建成功');
+            
+            // 如果是Markdown模式，调整字体大小
+            if (mode === 'markdown') {
+                editor.getWrapperElement().classList.add('markdown-editor');
+            }
+            
+            // 监听编辑器变化
+            editor.on('change', realtimeUpdate);
+        }
+
+        // 运行HTML代码
+        function runCode() {
+            const code = editor.getValue();
+            const previewFrame = document.getElementById('previewFrame');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            debugLog('运行HTML代码');
+            
+            // 保存代码到本地存储
+            localStorage.setItem('codeplay-html-code', code);
+            
+            // 显示加载指示器
+            loadingIndicator.classList.add('show');
+            
+            // 更新iframe尺寸显示
+            updateFrameSize();
+            
+            // 使用srcdoc属性来设置iframe内容
+            try {
+                previewFrame.srcdoc = code;
+                
+                // 监听iframe加载完成事件
+                previewFrame.onload = function() {
+                    loadingIndicator.classList.remove('show');
+                    previewFrame.onload = null;
+                };
+                
+                // 设置超时
+                setTimeout(() => {
+                    loadingIndicator.classList.remove('show');
+                }, 5000);
+                
+            } catch (error) {
+                console.error('渲染错误:', error);
+                loadingIndicator.classList.remove('show');
+                showNotification('渲染失败，请刷新页面重试', 'error');
+            }
+        }
+
+        // 渲染Markdown
+        function renderMarkdown() {
+            const markdown = editor.getValue();
+            const previewContent = document.getElementById('previewContent');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            debugLog('渲染Markdown');
+            
+            // 保存代码到本地存储
+            localStorage.setItem('codeplay-md-code', markdown);
+            
+            // 显示加载指示器
+            loadingIndicator.classList.add('show');
+            
+            // 配置marked
+            marked.setOptions({
+                gfm: true,
+                breaks: true,
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+                    return hljs.highlightAuto(code).value;
+                }
+            });
+            
+            // 使用setTimeout确保UI更新
+            setTimeout(() => {
+                try {
+                    // 使用marked解析Markdown
+                    const html = marked.parse(markdown);
+                    previewContent.innerHTML = html;
+                    
+                    // 处理所有代码块
+                    document.querySelectorAll('pre code').forEach((block) => {
+                        let language = 'text';
+                        
+                        // 查找包含"language-"的类
+                        for (let className of block.classList) {
+                            if (className.startsWith('language-')) {
+                                language = className.replace('language-', '');
+                                break;
+                            }
+                        }
+                        
+                        if (!language || language === 'undefined' || language === 'null') {
+                            language = 'text';
+                        }
+                        
+                        // 创建代码块容器
+                        const codeContainer = document.createElement('div');
+                        codeContainer.className = 'code-block-container';
+                        
+                        // 创建标题栏
+                        const header = document.createElement('div');
+                        header.className = 'code-block-header';
+                        
+                        // 语言显示
+                        const langDisplay = document.createElement('div');
+                        langDisplay.className = 'code-language';
+                        const langIcon = getLanguageIcon(language);
+                        langDisplay.innerHTML = `
+                            <i class="${langIcon}"></i>
+                            <span class="lang-name">${language}</span>
+                        `;
+                        
+                        // 操作按钮
+                        const actions = document.createElement('div');
+                        actions.className = 'code-actions';
+                        actions.innerHTML = `
+                            <button class="code-action-btn copy-btn" title="复制代码">
+                                <i class="fas fa-copy"></i> 复制
+                            </button>
+                        `;
+                        
+                        header.appendChild(langDisplay);
+                        header.appendChild(actions);
+                        
+                        // 创建代码内容区域
+                        const codeContent = document.createElement('div');
+                        codeContent.className = 'code-content';
+                        codeContent.appendChild(block.cloneNode(true));
+                        
+                        // 组装代码块
+                        codeContainer.appendChild(header);
+                        codeContainer.appendChild(codeContent);
+                        
+                        // 替换原始pre元素
+                        const preElement = block.parentElement;
+                        preElement.parentNode.replaceChild(codeContainer, preElement);
+                        
+                        // 高亮代码
+                        hljs.highlightElement(block);
+                        
+                        // 添加行号
+                        hljs.lineNumbersBlock(block);
+                    });
+                    
+                    // 添加复制功能
+                    document.querySelectorAll('.copy-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const codeBlock = this.closest('.code-block-container');
+                            const code = codeBlock.querySelector('code').textContent;
+                            navigator.clipboard.writeText(code).then(() => {
+                                const originalText = this.innerHTML;
+                                this.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                                setTimeout(() => {
+                                    this.innerHTML = originalText;
+                                }, 2000);
+                            }).catch(err => {
+                                console.error('复制失败:', err);
+                            });
+                        });
+                    });
+                    
+                    // 隐藏加载指示器
+                    loadingIndicator.classList.remove('show');
+                } catch (error) {
+                    console.error('Markdown解析错误:', error);
+                    loadingIndicator.classList.remove('show');
+                    showNotification('Markdown解析失败，请检查语法', 'error');
+                }
+            }, 50);
+        }
+
+        // 实时预览函数（使用防抖技术）
+        function realtimeUpdate() {
+            if (!realtimeUpdateEnabled || !currentMode) return;
+            
+            // 清除之前的定时器
+            if (realtimeUpdateTimeout) {
+                clearTimeout(realtimeUpdateTimeout);
+            }
+            
+            // 设置新的定时器
+            realtimeUpdateTimeout = setTimeout(() => {
+                if (currentMode === 'html') {
+                    const code = editor.getValue();
+                    const previewFrame = document.getElementById('previewFrame');
+                    
+                    // 更新iframe尺寸显示
+                    updateFrameSize();
+                    
+                    // 使用srcdoc属性来设置iframe内容
+                    try {
+                        previewFrame.srcdoc = code;
+                    } catch (error) {
+                        console.error('实时预览错误:', error);
+                    }
+                } else {
+                    renderMarkdown();
+                }
+            }, realtimeUpdateDelay);
+        }
+
+        // 更新iframe尺寸显示
+        function updateFrameSize() {
+            if (currentMode !== 'html') return;
+            
+            const previewPane = document.querySelector('.preview-pane');
+            const frameSizeElement = document.getElementById('frameSize');
+            const width = previewPane.clientWidth - 2;
+            const height = previewPane.clientHeight - 40;
+            frameSizeElement.textContent = `${width} × ${height}`;
+        }
+
+        // 格式化代码
+        function formatCode() {
+            let code = editor.getValue();
+            debugLog('格式化代码');
+            
+            if (currentMode === 'html') {
+                // HTML格式化
+                let indentLevel = 0;
+                const lines = code.split('\n');
+                const formattedLines = [];
+                
+                for (let line of lines) {
+                    const trimmedLine = line.trim();
+                    
+                    if (trimmedLine === '') {
+                        formattedLines.push('');
+                        continue;
+                    }
+                    
+                    if (trimmedLine.startsWith('</')) {
+                        indentLevel = Math.max(0, indentLevel - 1);
+                    }
+                    
+                    const indent = ' '.repeat(indentLevel * 4);
+                    formattedLines.push(indent + trimmedLine);
+                    
+                    if (trimmedLine.startsWith('<') && !trimmedLine.endsWith('/>') && 
+                        !trimmedLine.includes('</') && !trimmedLine.endsWith('-->')) {
+                        if (!trimmedLine.startsWith('<!') && 
+                            !trimmedLine.startsWith('<?') && 
+                            !trimmedLine.match(/<(meta|link|br|hr|img|input|col|area|base)/)) {
+                            indentLevel++;
+                        }
+                    }
+                }
+                
+                const formattedCode = formattedLines.join('\n');
+                editor.setValue(formattedCode);
+            } else {
+                // Markdown格式化
+                const lines = code.split('\n');
+                const formattedLines = [];
+                let previousLineEmpty = false;
+                
+                for (let line of lines) {
+                    const trimmedLine = line.trim();
+                    
+                    if (trimmedLine === '') {
+                        if (!previousLineEmpty) {
+                            formattedLines.push('');
+                            previousLineEmpty = true;
+                        }
+                    } else {
+                        formattedLines.push(line);
+                        previousLineEmpty = false;
+                    }
+                }
+                
+                while (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === '') {
+                    formattedLines.pop();
+                }
+                
+                const formattedCode = formattedLines.join('\n');
+                editor.setValue(formattedCode);
+            }
+            
+            showNotification('代码已格式化');
+        }
+
+        // 工具栏按钮点击事件
+        function initToolbarButtons() {
+            const toolbarButtons = document.querySelectorAll('.toolbar-btn');
+            debugLog(`初始化 ${toolbarButtons.length} 个工具栏按钮`);
+            
+            toolbarButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (currentMode !== 'markdown') return;
+                    
+                    const insertText = this.getAttribute('data-insert');
+                    const cursor = editor.getCursor();
+                    const selection = editor.getSelection();
+                    
+                    if (selection) {
+                        editor.replaceSelection(insertText.replace('代码', selection));
+                    } else {
+                        editor.replaceSelection(insertText);
+                        
+                        if (insertText.includes('代码')) {
+                            const lines = editor.getValue().split('\n');
+                            const currentLine = lines[cursor.line];
+                            const textIndex = currentLine.indexOf(insertText);
+                            
+                            if (textIndex !== -1) {
+                                const placeholderIndex = insertText.indexOf('代码');
+                                editor.setCursor({
+                                    line: cursor.line,
+                                    ch: textIndex + placeholderIndex
+                                });
+                            }
+                        }
+                    }
+                    
+                    editor.focus();
+                });
+            });
+        }
+
+        // 导入文件
+        function importFile() {
+            debugLog('导入文件');
+            const fileInput = document.getElementById('fileInput');
+            fileInput.click();
+        }
+
+        // 处理文件选择
+        function initFileInput() {
+            const fileInput = document.getElementById('fileInput');
+            
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // 检查文件类型
+                let isValidFile = false;
+                if (currentMode === 'html') {
+                    isValidFile = file.name.endsWith('.html') || file.name.endsWith('.htm') || file.name.endsWith('.txt');
+                } else {
+                    isValidFile = file.name.endsWith('.md') || file.name.endsWith('.markdown') || file.name.endsWith('.txt');
+                }
+                
+                if (!isValidFile) {
+                    showNotification(`请选择${currentMode === 'html' ? 'HTML' : 'Markdown'}文件`, 'error');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    editor.setValue(content);
+                    showNotification('文件导入成功');
+                    
+                    // 自动运行/渲染
+                    if (currentMode === 'html') {
+                        runCode();
+                    } else {
+                        renderMarkdown();
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showNotification('文件读取失败', 'error');
+                };
+                
+                reader.readAsText(file);
+                
+                // 重置文件输入框
+                fileInput.value = '';
+            });
+        }
+
+        // 导出文件
+        function exportFile() {
+            debugLog('导出文件');
+            const exportModal = document.getElementById('exportModal');
+            const filenameInput = document.getElementById('filenameInput');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalText = document.getElementById('modalText');
+            const modalExport = document.getElementById('modalExport');
+            
+            // 更新模态框内容
+            if (currentMode === 'html') {
+                modalTitle.textContent = '导出HTML文件';
+                modalText.textContent = '请输入文件名（无需输入扩展名）：';
+                filenameInput.value = 'codeplay-export';
+                modalExport.className = 'modal-btn modal-btn-primary';
+            } else {
+                modalTitle.textContent = '导出Markdown文件';
+                modalText.textContent = '请输入文件名（无需输入扩展名）：';
+                filenameInput.value = 'codeplay-markdown';
+                modalExport.className = 'modal-btn modal-btn-primary modal-btn-markdown';
+            }
+            
+            // 显示模态框
+            exportModal.classList.add('show');
+            filenameInput.focus();
+            filenameInput.select();
+        }
+
+        // 执行导出操作
+        function performExport() {
+            const code = editor.getValue();
+            const filenameInput = document.getElementById('filenameInput');
+            const exportModal = document.getElementById('exportModal');
+            
+            let filename = filenameInput.value.trim();
+            if (!filename) {
+                filename = currentMode === 'html' ? 'codeplay-export' : 'codeplay-markdown';
+            }
+            
+            const extension = currentMode === 'html' ? '.html' : '.md';
+            const fullFilename = filename.endsWith(extension) ? filename : `${filename}${extension}`;
+            const mimeType = currentMode === 'html' ? 'text/html' : 'text/markdown';
+            
+            debugLog(`导出文件: ${fullFilename}`);
+            
+            // 创建Blob对象
+            const blob = new Blob([code], { type: mimeType });
+            
+            // 创建下载链接
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fullFilename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            // 关闭模态框
+            exportModal.classList.remove('show');
+            showNotification('文件导出成功');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            const exportModal = document.getElementById('exportModal');
+            exportModal.classList.remove('show');
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            debugLog(`显示通知: ${message} (${type})`);
+            
+            // 移除现有的通知
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) existingNotification.remove();
+            
+            // 创建通知
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            
+            // 设置通知类型颜色
+            if (type === 'success') {
+                notification.style.backgroundColor = '#10b981';
+            } else if (type === 'error') {
+                notification.style.backgroundColor = '#ef4444';
+            } else if (type === 'warning') {
+                notification.style.backgroundColor = '#f59e0b';
+            }
+            
+            // 添加到body
+            document.body.appendChild(notification);
+            
+            // 3秒后移除
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+
+        // 切换主题
+        function toggleTheme() {
+            const body = document.body;
+            const themeBtn = document.getElementById('themeBtn');
+            const themeBtnHome = document.getElementById('themeBtnHome');
+            const isDarkTheme = body.classList.contains('dark-theme');
+            
+            debugLog(`切换主题: ${isDarkTheme ? '暗色 -> 亮色' : '亮色 -> 暗色'}`);
+            
+            if (isDarkTheme) {
+                body.classList.remove('dark-theme');
+                body.classList.add('light-theme');
+                themeBtn.innerHTML = '<i class="fas fa-moon"></i>';
+                themeBtnHome.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                body.classList.remove('light-theme');
+                body.classList.add('dark-theme');
+                themeBtn.innerHTML = '<i class="fas fa-sun"></i>';
+                themeBtnHome.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+            
+            // 更新编辑器主题
+            if (editor) {
+                editor.setOption('theme', body.classList.contains('dark-theme') ? 'dracula' : 'default');
+            }
+            
+            // 保存主题偏好
+            localStorage.setItem('codeplay-theme', body.classList.contains('dark-theme') ? 'dark' : 'light');
+        }
+
+        // 切换实时预览
+        function toggleRealtimeUpdate() {
+            const realtimeToggle = document.getElementById('realtimeToggle');
+            realtimeUpdateEnabled = realtimeToggle.checked;
+            localStorage.setItem('codeplay-realtime', realtimeUpdateEnabled);
+            
+            if (realtimeUpdateEnabled) {
+                showNotification('实时预览已启用');
+                // 立即更新一次预览
+                realtimeUpdate();
+            } else {
+                showNotification('实时预览已禁用');
+            }
+        }
+
+        // 切换布局方向
+        function toggleOrientation() {
+            const mainContainer = document.querySelector('.main-container');
+            const resizer = document.getElementById('resizer');
+            const editorPane = document.querySelector('.editor-pane');
+            const previewPane = document.querySelector('.preview-pane');
+            const isVertical = mainContainer.style.flexDirection !== 'column';
+            
+            debugLog(`切换布局方向: ${isVertical ? '垂直 -> 水平' : '水平 -> 垂直'}`);
+            
+            if (isVertical) {
+                // 当前是垂直布局，切换到水平
+                mainContainer.style.flexDirection = 'row';
+                resizer.style.width = '5px';
+                resizer.style.height = '100%';
+                resizer.style.left = '50%';
+                resizer.style.top = '0';
+                resizer.style.transform = 'translateX(-50%)';
+                resizer.style.cursor = 'col-resize';
+                
+                editorPane.style.height = '100%';
+                previewPane.style.height = '100%';
+            } else {
+                // 当前是水平布局，切换到垂直
+                mainContainer.style.flexDirection = 'column';
+                resizer.style.width = '100%';
+                resizer.style.height = '5px';
+                resizer.style.left = '0';
+                resizer.style.top = '50%';
+                resizer.style.transform = 'translateY(-50%)';
+                resizer.style.cursor = 'row-resize';
+                
+                editorPane.style.height = '50%';
+                previewPane.style.height = '50%';
+            }
+            
+            // 更新iframe尺寸
+            setTimeout(updateFrameSize, 100);
+        }
+
+        // 初始化分隔条
+        function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const mainContainer = document.querySelector('.main-container');
+            const editorPane = document.querySelector('.editor-pane');
+            const previewPane = document.querySelector('.preview-pane');
+            
+            debugLog('初始化分隔条');
+            
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+            
+            resizer.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(getComputedStyle(editorPane).width, 10);
+                startHeight = parseInt(getComputedStyle(editorPane).height, 10);
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', () => {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    updateFrameSize();
+                });
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                const isVertical = mainContainer.style.flexDirection !== 'column';
+                const containerRect = mainContainer.getBoundingClientRect();
+                
+                if (isVertical) {
+                    // 水平布局
+                    const dx = e.clientX - startX;
+                    const newWidth = startWidth + dx;
+                    const minWidth = 200;
+                    const maxWidth = containerRect.width - 200;
+                    
+                    if (newWidth >= minWidth && newWidth <= maxWidth) {
+                        editorPane.style.width = `${newWidth}px`;
+                        previewPane.style.width = `calc(100% - ${newWidth}px)`;
+                        resizer.style.left = `${newWidth}px`;
+                    }
+                } else {
+                    // 垂直布局
+                    const dy = e.clientY - startY;
+                    const newHeight = startHeight + dy;
+                    const minHeight = 150;
+                    const maxHeight = containerRect.height - 150;
+                    
+                    if (newHeight >= minHeight && newHeight <= maxHeight) {
+                        editorPane.style.height = `${newHeight}px`;
+                        previewPane.style.height = `calc(100% - ${newHeight}px)`;
+                        resizer.style.top = `${newHeight}px`;
+                    }
+                }
+            }
+        }
+
+        // 初始化事件监听
+        function initEventListeners() {
+            debugLog('初始化事件监听器');
+            
+            const runBtn = document.getElementById('runBtn');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const themeBtn = document.getElementById('themeBtn');
+            const themeBtnHome = document.getElementById('themeBtnHome');
+            const formatBtn = document.getElementById('formatBtn');
+            const orientationBtn = document.getElementById('orientationBtn');
+            const realtimeToggle = document.getElementById('realtimeToggle');
+            const importBtn = document.getElementById('importBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const modalClose = document.getElementById('modalClose');
+            const modalCancel = document.getElementById('modalCancel');
+            const modalExport = document.getElementById('modalExport');
+            const backToHome = document.getElementById('backToHome');
+            
+            // 运行/预览按钮
+            runBtn.addEventListener('click', () => {
+                debugLog('运行/预览按钮点击');
+                if (currentMode === 'html') {
+                    runCode();
+                } else {
+                    renderMarkdown();
+                }
+            });
+            
+            // 刷新按钮
+            refreshBtn.addEventListener('click', () => {
+                debugLog('刷新按钮点击');
+                if (currentMode === 'html') {
+                    runCode();
+                } else {
+                    renderMarkdown();
+                }
+            });
+            
+            // 主题切换按钮
+            themeBtn.addEventListener('click', toggleTheme);
+            themeBtnHome.addEventListener('click', toggleTheme);
+            
+            // 格式化按钮
+            formatBtn.addEventListener('click', formatCode);
+            
+            // 方向切换按钮
+            orientationBtn.addEventListener('click', toggleOrientation);
+            
+            // 实时预览开关
+            realtimeToggle.addEventListener('change', toggleRealtimeUpdate);
+            
+            // 导入/导出按钮
+            importBtn.addEventListener('click', importFile);
+            exportBtn.addEventListener('click', exportFile);
+            
+            // 返回首页按钮
+            backToHome.addEventListener('click', goBackToHome);
+            
+            // 模态框按钮
+            modalClose.addEventListener('click', closeModal);
+            modalCancel.addEventListener('click', closeModal);
+            modalExport.addEventListener('click', performExport);
+            
+            // 工具栏按钮
+            initToolbarButtons();
+            
+            // 文件输入
+            initFileInput();
+            
+            // 分隔条
+            initResizer();
+            
+            // 窗口大小变化时更新iframe尺寸
+            window.addEventListener('resize', updateFrameSize);
+            
+            // 快捷键支持
+            document.addEventListener('keydown', function(e) {
+                // Ctrl + Enter 运行代码/渲染Markdown
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentMode === 'html') {
+                        runCode();
+                    } else {
+                        renderMarkdown();
+                    }
+                }
+                
+                // Ctrl + S 格式化代码
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    formatCode();
+                }
+                
+                // Ctrl + L 切换主题
+                if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                    e.preventDefault();
+                    toggleTheme();
+                }
+                
+                // Ctrl + O 切换方向
+                if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+                    e.preventDefault();
+                    toggleOrientation();
+                }
+                
+                // Ctrl + I 导入文件
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    importFile();
+                }
+                
+                // Ctrl + E 导出文件
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    exportFile();
+                }
+                
+                // ESC 关闭模态框
+                if (e.key === 'Escape' && document.getElementById('exportModal').classList.contains('show')) {
+                    closeModal();
+                }
+                
+                // Enter 确认导出
+                if (e.key === 'Enter' && document.getElementById('exportModal').classList.contains('show')) {
+                    performExport();
+                }
+            });
+        }
+
+        // 加载设置
+        function loadSettings() {
+            const body = document.body;
+            const themeBtn = document.getElementById('themeBtn');
+            const themeBtnHome = document.getElementById('themeBtnHome');
+            const realtimeToggle = document.getElementById('realtimeToggle');
+            
+            debugLog('加载设置');
+            
+            // 加载保存的主题
+            const savedTheme = localStorage.getItem('codeplay-theme');
+            if (savedTheme === 'light') {
+                body.classList.remove('dark-theme');
+                body.classList.add('light-theme');
+                themeBtn.innerHTML = '<i class="fas fa-moon"></i>';
+                themeBtnHome.innerHTML = '<i class="fas fa-moon"></i>';
+                
+                if (editor) {
+                    editor.setOption('theme', 'default');
+                }
+            }
+            
+            // 加载实时预览设置
+            const savedRealtime = localStorage.getItem('codeplay-realtime');
+            if (savedRealtime === 'false') {
+                realtimeToggle.checked = false;
+                realtimeUpdateEnabled = false;
+            } else {
+                realtimeToggle.checked = true;
+                realtimeUpdateEnabled = true;
+            }
+        }
+
+        // 初始化首页事件
+        function initHomepageEvents() {
+            debugLog('初始化首页事件');
+            
+            const htmlModeBtn = document.getElementById('htmlModeBtn');
+            const markdownModeBtn = document.getElementById('markdownModeBtn');
+            
+            // 检查按钮是否存在
+            if (!htmlModeBtn) {
+                debugLog('错误: htmlModeBtn 元素不存在');
+                return;
+            }
+            if (!markdownModeBtn) {
+                debugLog('错误: markdownModeBtn 元素不存在');
+                return;
+            }
+            
+            debugLog(`找到按钮: htmlModeBtn=${!!htmlModeBtn}, markdownModeBtn=${!!markdownModeBtn}`);
+            
+            // 移除可能存在的旧事件监听器
+            htmlModeBtn.removeEventListener('click', htmlModeBtn.clickHandler);
+            markdownModeBtn.removeEventListener('click', markdownModeBtn.clickHandler);
+            
+            // 创建新的处理函数
+            htmlModeBtn.clickHandler = () => {
+                debugLog('HTML模式按钮被点击');
+                switchToMode('html');
+            };
+            
+            markdownModeBtn.clickHandler = () => {
+                debugLog('Markdown模式按钮被点击');
+                switchToMode('markdown');
+            };
+            
+            // 添加事件监听器
+            htmlModeBtn.addEventListener('click', htmlModeBtn.clickHandler);
+            markdownModeBtn.addEventListener('click', markdownModeBtn.clickHandler);
+            
+            debugLog('首页事件监听器已绑定');
+        }
+
+        // 初始化
+        function init() {
+            debugLog('初始化应用程序');
+            
+            // 初始化首页事件
+            initHomepageEvents();
+            
+            // 加载设置
+            loadSettings();
+            
+            // 显示欢迎提示
+            setTimeout(() => {
+                showNotification('欢迎使用 CodePlay 多模式编辑器！请选择编辑模式开始使用。', 'success');
+            }, 1000);
+            
+            debugLog('应用程序初始化完成');
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            debugLog('DOMContentLoaded - 页面DOM已加载完成');
+            init();
+        });
+
+        // 如果DOM已经加载完成，立即执行
+        if (document.readyState === 'loading') {
+            debugLog('文档仍在加载中，等待DOMContentLoaded事件');
+        } else {
+            debugLog('文档已加载完成，立即执行初始化');
+            init();
+        }
+    </script>
+</body>
+</html>
